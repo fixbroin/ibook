@@ -1,0 +1,35 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "srikanth-logo",
+      "description": "Logo for FixBro Inc.",
+      "imageUrl": "https://ad.fixbro.in/public/uploads/web_settings/1743422617_5e3126f2479a78593234.png",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "default-logo",
+      "description": "Default site logo",
+      "imageUrl": "https://picsum.photos/seed/logo/64/64",
+      "imageHint": "site logo"
+    },
+    {
+      "id": "dashboard-mockup",
+      "description": "Mockup of the BookWise application dashboard.",
+      "imageUrl": "https://picsum.photos/seed/dashboard-mockup/1200/800",
+      "imageHint": "app dashboard"
+    },
+    {
+      "id": "dashboard-screenshot",
+      "description": "Screenshot of the provider dashboard showing bookings.",
+      "imageUrl": "https://picsum.photos/seed/dashboard/1200/800",
+      "imageHint": "dashboard bookings"
+    },
+    {
+      "id": "booking-page-screenshot",
+      "description": "Screenshot of the public booking page with a calendar.",
+      "imageUrl": "https://picsum.photos/seed/booking-page/1200/800",
+      "imageHint": "booking calendar"
+    }
+  ]
+}
