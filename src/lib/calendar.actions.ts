@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import type { Booking, CalendarTokens, Provider } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 // --- Google Calendar ---
 
@@ -98,19 +99,16 @@ export async function createGoogleCalendarEvent(provider: Provider, booking: Boo
 
         const serviceTypeSetting = provider.settings.serviceTypes.find(st => st.name === booking.serviceType);
         
-        // Format datetime into a local ISO-like string without 'Z'
-        const formatToLocalISO = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm:ss");
-
         const event: any = {
             summary: `Booking: ${booking.customerName} - ${booking.serviceType}`,
             location: booking.address || 'Online',
             description: `Appointment with ${booking.customerName} (${booking.customerEmail}, ${booking.customerPhone}) for service: ${booking.serviceType}.`,
             start: {
-                dateTime: formatToLocalISO(startTime),
+                dateTime: formatInTimeZone(startTime, provider.settings.timezone, "yyyy-MM-dd'T'HH:mm:ss"),
                 timeZone: provider.settings.timezone,
             },
             end: {
-                dateTime: formatToLocalISO(endTime),
+                dateTime: formatInTimeZone(endTime, provider.settings.timezone, "yyyy-MM-dd'T'HH:mm:ss"),
                 timeZone: provider.settings.timezone,
             },
             organizer: {
