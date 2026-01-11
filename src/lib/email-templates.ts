@@ -52,6 +52,7 @@ export async function sendBookingConfirmationEmail(to: string, data: {
     providerName: string;
     serviceTitle?: string | null;
     serviceType: string;
+    quantity?: number | null;
     bookingDate: string;
     bookingTime: string;
     bookingTimeProvider: string;
@@ -70,13 +71,17 @@ export async function sendBookingConfirmationEmail(to: string, data: {
         locationDetails = `${data.bookingAddress} <br> <a href="${data.googleMapLink}" target="_blank">View on Map</a>`;
     }
 
+    const serviceTitleWithQuantity = data.quantity && data.quantity > 1 
+        ? `${data.serviceTitle || data.serviceType} (x${data.quantity})`
+        : data.serviceTitle || data.serviceType;
+
     await sendEmail({
         to,
         subject: `Booking Confirmed with ${data.providerName}`,
         template: 'booking_email.html',
         data: {
             ...data,
-            serviceTitle: data.serviceTitle || data.serviceType,
+            serviceTitle: serviceTitleWithQuantity,
             locationDetails: locationDetails,
         }
     });
@@ -89,6 +94,7 @@ export async function sendProviderBookingNotificationEmail(to: string, data: {
     customerPhone: string;
     serviceTitle?: string | null;
     serviceType: string;
+    quantity?: number | null;
     bookingDate: string;
     bookingTime: string;
     bookingAddress: string;
@@ -102,6 +108,10 @@ export async function sendProviderBookingNotificationEmail(to: string, data: {
     } else if (data.googleMapLink) {
         locationDetails = `${data.bookingAddress} <br> <a href="${data.googleMapLink}" target="_blank">View on Map</a>`;
     }
+
+    const serviceTitleWithQuantity = data.quantity && data.quantity > 1 
+        ? `${data.serviceTitle || data.serviceType} (x${data.quantity})`
+        : data.serviceTitle || data.serviceType;
         
     await sendEmail({
         to,
@@ -109,7 +119,7 @@ export async function sendProviderBookingNotificationEmail(to: string, data: {
         template: 'provider_booking_notification.html',
         data: {
             ...data,
-            serviceTitle: data.serviceTitle || data.serviceType,
+            serviceTitle: serviceTitleWithQuantity,
             locationDetails: locationDetails,
         }
     });

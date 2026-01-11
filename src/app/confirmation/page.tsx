@@ -30,6 +30,7 @@ function ConfirmationContent() {
     const customerPhone = searchParams.get('customerPhone');
     const serviceType = searchParams.get('serviceType');
     const serviceTitle = searchParams.get('serviceTitle');
+    const quantity = searchParams.get('quantity');
     const dateTime = searchParams.get('dateTime');
     const providerName = searchParams.get('providerName');
     const providerUsername = searchParams.get('providerUsername');
@@ -123,6 +124,7 @@ function ConfirmationContent() {
 
     const isPayLater = amountPaid === '0' && totalAmount && Number(totalAmount) > 0;
     const isShopVisit = serviceType === 'Shop Visit';
+    const quantityNum = quantity ? parseInt(quantity, 10) : 0;
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -165,7 +167,7 @@ function ConfirmationContent() {
                                     <Briefcase className="h-5 w-5 text-muted-foreground" />
                                     <div>
                                         <p className="text-muted-foreground">Service</p>
-                                        <p className="font-medium">{serviceTitle || serviceType}</p>
+                                        <p className="font-medium">{serviceTitle || serviceType} {quantityNum > 1 ? `(x${quantityNum})` : ''}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">

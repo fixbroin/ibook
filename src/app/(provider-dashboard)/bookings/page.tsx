@@ -235,7 +235,7 @@ export default function BookingsPage() {
                     <div className="text-sm text-muted-foreground">{booking.customerEmail}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{serviceTitle}</div>
+                    <div className="font-medium">{serviceTitle} {booking.quantity && booking.quantity > 1 ? `(x${booking.quantity})` : ''}</div>
                     <div className="text-sm text-muted-foreground">{booking.serviceType}</div>
                   </TableCell>
                   <TableCell>
@@ -303,7 +303,7 @@ export default function BookingsPage() {
                 <div className="space-y-2 text-sm">
                     <div className="flex flex-col">
                         <span className="text-muted-foreground text-xs">Service</span>
-                        <span className="font-medium">{serviceTitle} ({booking.serviceType})</span>
+                        <span className="font-medium">{serviceTitle} {booking.quantity && booking.quantity > 1 ? `(x${booking.quantity})` : ''} ({booking.serviceType})</span>
                     </div>
                     <div className="flex flex-col">
                         <span className="text-muted-foreground text-xs">Date</span>
@@ -389,7 +389,7 @@ export default function BookingsPage() {
                         <div className="flex items-start gap-3">
                             <div className="w-5 text-muted-foreground flex items-center justify-center pt-1"><BadgeCent className="h-5 w-5" /></div>
                             <div>
-                                <p className="font-medium">{serviceTitle}</p>
+                                <p className="font-medium">{serviceTitle} {booking.quantity && booking.quantity > 1 ? `(x${booking.quantity})` : ''}</p>
                                 <p className="text-muted-foreground text-sm">{booking.serviceType}</p>
                             </div>
                         </div>
