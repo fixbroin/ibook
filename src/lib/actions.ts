@@ -55,7 +55,7 @@ export async function createBooking(
     dateTime: bookingDateTime,
     providerUsername: data.providerUsername,
     address: fullAddress || undefined,
-    serviceId: service?.id,
+    serviceId: service?.id || null,
     quantity: data.quantity,
   };
 
@@ -697,3 +697,4 @@ export async function updateBlockedDates(username: string, dates: string[], shou
         return { success: false, error: error.message };
     }
 }
+
