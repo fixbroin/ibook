@@ -188,12 +188,12 @@ export function ProviderBookingPageContent({ provider }: { provider: Provider })
     >
       <header className="w-full max-w-7xl mx-auto">
         <div className="flex h-14 items-center justify-between rounded-lg bg-background px-4 shadow-sm border">
-            <Link href={`/${provider.username}`} className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
+            <Link href={`/${provider.username}`} className="flex items-center gap-2 min-w-0">
+                <Avatar className="h-8 w-8 flex-shrink-0">
                     <AvatarImage src={provider.logoUrl || logo.imageUrl} alt={provider.name} onContextMenu={(e) => e.preventDefault()} draggable={false} />
                     <AvatarFallback>{provider.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <h1 className="text-xl font-bold">{provider.name}</h1>
+                <h1 className="text-xl font-bold truncate">{provider.name}</h1>
             </Link>
             <div className="flex items-center gap-4">
                 <nav className="hidden items-center gap-4 lg:flex">
