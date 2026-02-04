@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "brobookme",
+      "description": "Logo for FixBro Inc.",
+      "imageUrl": "/android-chrome-512x512.png",
+      "imageHint": "company logo"
+    },
+    {
+      "id": "default-logo",
+      "description": "Default site logo",
+      "imageUrl": "https://images.unsplash.com/photo-1660071155921-7204712d7d1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzaXRlJTIwbG9nb3xlbnwwfHx8fDE3NTg2OTk0NDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "site logo"
+    },
+    {
+      "id": "dashboard-mockup",
+      "description": "Mockup of the BroBookMe application dashboard.",
+      "imageUrl": "https://images.unsplash.com/photo-1758411898471-fa144c487c85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhcHAlMjBkYXNoYm9hcmR8ZW58MHx8fHwxNzU4NjE3MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "app dashboard"
+    },
+    {
+      "id": "dashboard-screenshot",
+      "description": "Screenshot of the provider dashboard showing bookings.",
+      "imageUrl": "https://images.unsplash.com/photo-1603702607501-a0e27733e2e3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxkYXNoYm9hcmQlMjBib29raW5nc3xlbnwwfHx8fDE3NTg2OTk0NDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dashboard bookings"
+    },
+    {
+      "id": "booking-page-screenshot",
+      "description": "Screenshot of the public booking page with a calendar.",
+      "imageUrl": "https://images.unsplash.com/photo-1649433391719-2e784576d044?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxib29raW5nJTIwY2FsZW5kYXJ8ZW58MHx8fHwxNzU4NjQxOTQ1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "booking calendar"
+    }
+  ]
+}
