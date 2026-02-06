@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useTransition } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { auth, storage } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ import { getProviderByUsername, updateProvider } from '@/lib/data';
 import type { Provider, ProviderTestimonial } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, MoreVertical, Upload, Trash2, X, Star, User as UserIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Star, Upload, Trash2, X, User as UserIcon, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -19,18 +19,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { getDownloadURL, ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 const emptyItem: Partial<ProviderTestimonial> = {
   name: '',
@@ -45,7 +37,7 @@ const emptyItem: Partial<ProviderTestimonial> = {
 export default function TestimonialsPage() {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -114,26 +106,21 @@ export default function TestimonialsPage() {
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!currentItem || !provider) return;
+    setIsPending(true);
 
-    startTransition(async () => {
+    try {
       let imageUrl = currentItem.imageUrl || '';
-      
       if (imageFile) {
         setUploadProgress(0);
         const storageRef = ref(storage, `testimonials/${provider.username}/${uuidv4()}-${imageFile.name}`);
-        try {
-            const uploadTask = uploadBytesResumable(storageRef, imageFile);
-            imageUrl = await new Promise<string>((resolve, reject) => {
-                uploadTask.on('state_changed',
-                    (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                    reject,
-                    async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
-                );
-            });
-        } catch (error) {
-            toast({ title: 'Upload Failed', description: 'Could not upload image.', variant: 'destructive' });
-            return;
-        }
+        const uploadTask = uploadBytesResumable(storageRef, imageFile);
+        imageUrl = await new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                reject,
+                async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+            );
+        });
       }
 
       const finalItem: ProviderTestimonial = {
@@ -153,39 +140,45 @@ export default function TestimonialsPage() {
         updatedItems = [...existingItems, finalItem];
       }
       
-      try {
-        const testimonialsSettings = { ...provider.settings.testimonials, items: updatedItems };
-        await updateProvider(provider.username, { settings: { ...provider.settings, testimonials: testimonialsSettings } });
-        toast({ title: 'Success', description: 'Testimonial saved.' });
-        setProvider(p => p ? { ...p, settings: { ...p.settings, testimonials: testimonialsSettings } } : null);
-        resetFormState();
-      } catch (error: any) {
-        toast({ title: 'Error', description: 'Failed to save testimonial.', variant: 'destructive' });
-      }
-    });
+      const testimonialsSettings = { ...provider.settings.testimonials, items: updatedItems };
+      await updateProvider(provider.username, { settings: { ...provider.settings, testimonials: testimonialsSettings } });
+      
+      setProvider(p => p ? { ...p, settings: { ...p.settings, testimonials: testimonialsSettings } } : null);
+      toast({ title: 'Success', description: 'Testimonial saved.' });
+      resetFormState();
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Failed to save testimonial.', variant: 'destructive' });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!currentItem?.id || !provider) return;
-
-    startTransition(async () => {
+    setIsPending(true);
+    
+    try {
         const itemToDelete = provider.settings.testimonials?.items.find(i => i.id === currentItem.id);
         const updatedItems = (provider.settings.testimonials?.items || []).filter(i => i.id !== currentItem.id);
         const testimonialsSettings = { ...provider.settings.testimonials, items: updatedItems };
-        try {
-            await updateProvider(provider.username, { settings: { ...provider.settings, testimonials: testimonialsSettings } });
-            if (itemToDelete?.imageUrl && itemToDelete.imageUrl.includes('firebasestorage')) {
-                const imageRef = ref(storage, itemToDelete.imageUrl);
-                await deleteObject(imageRef).catch(err => console.warn("Could not delete old image:", err));
-            }
-            toast({ title: 'Success', description: 'Testimonial deleted.' });
-            setProvider(p => p ? { ...p, settings: { ...p.settings, testimonials: testimonialsSettings } } : null);
-            setIsDeleteAlertOpen(false);
-            setCurrentItem(null);
-        } catch (error: any) {
-            toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
+        
+        await updateProvider(provider.username, { settings: { ...provider.settings, testimonials: testimonialsSettings } });
+        
+        if (itemToDelete?.imageUrl && itemToDelete.imageUrl.includes('firebasestorage')) {
+            const imageRef = ref(storage, itemToDelete.imageUrl);
+            await deleteObject(imageRef).catch(err => console.warn("Could not delete old image:", err));
         }
-    });
+        
+        setProvider(p => p ? { ...p, settings: { ...p.settings, testimonials: testimonialsSettings } } : null);
+        toast({ title: 'Success', description: 'Testimonial deleted.' });
+        
+    } catch (error: any) {
+        toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
+    } finally {
+        setIsDeleteAlertOpen(false);
+        setCurrentItem(null);
+        setIsPending(false);
+    }
   };
 
   if (loading || !provider) {
@@ -211,31 +204,16 @@ export default function TestimonialsPage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {testimonials.map(item => (
                 <Card key={item.id} className="flex flex-col">
-                  <CardHeader className="flex-row items-start justify-between gap-4">
-                     <div className="flex items-center gap-4">
-                        <Avatar className="w-12 h-12">
-                            <AvatarImage src={item.imageUrl} />
-                            <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{item.name}</p>
-                            <p className="text-sm text-muted-foreground">{item.role}</p>
-                        </div>
-                     </div>
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenForm(item)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-500" onClick={() => {
-                                setCurrentItem(item);
-                                setIsDeleteAlertOpen(true);
-                            }}>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                  <CardHeader className="flex-row items-start gap-4">
+                     <Avatar className="w-12 h-12">
+                        <AvatarImage src={item.imageUrl} />
+                        <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">{item.role}</p>
+                    </div>
+                     <Badge variant={item.enabled ? 'default' : 'secondary'}>{item.enabled ? 'Enabled' : 'Disabled'}</Badge>
                   </CardHeader>
                   <CardContent className="flex-1">
                     <div className="flex items-center gap-0.5 mb-2">
@@ -245,8 +223,12 @@ export default function TestimonialsPage() {
                     </div>
                     <p className="text-sm text-muted-foreground">"{item.description}"</p>
                   </CardContent>
-                  <CardFooter>
-                     <Badge variant={item.enabled ? 'default' : 'secondary'}>{item.enabled ? 'Enabled' : 'Disabled'}</Badge>
+                  <CardFooter className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenForm(item)}><Edit className="mr-2 h-3 w-3" />Edit</Button>
+                      <Button variant="destructive" size="sm" onClick={() => {
+                          setCurrentItem(item);
+                          setIsDeleteAlertOpen(true);
+                      }}><Trash2 className="mr-2 h-3 w-3" />Delete</Button>
                   </CardFooter>
                 </Card>
               ))}
@@ -264,7 +246,14 @@ export default function TestimonialsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={(open) => !open && resetFormState()}>
+      <Dialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetFormState();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{currentItem?.id ? 'Edit' : 'Add'} Testimonial</DialogTitle>
@@ -336,7 +325,15 @@ export default function TestimonialsPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={(open) => {
+            if (!open) {
+                setCurrentItem(null);
+            }
+            setIsDeleteAlertOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>

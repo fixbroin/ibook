@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useEffect, useState, useRef, useTransition, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, storage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -10,7 +9,7 @@ import { getProviderByUsername, updateProvider } from '@/lib/data';
 import type { Provider, Service } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, MoreVertical, Upload, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { Loader2, PlusCircle, Upload, Trash2, Image as ImageIcon, X, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -25,12 +24,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 
 const emptyService: Omit<Service, 'id'> = {
@@ -49,7 +42,7 @@ const emptyService: Omit<Service, 'id'> = {
 export default function ServicesPage() {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -130,7 +123,8 @@ export default function ServicesPage() {
       return;
     }
 
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       let imageUrl = currentService.imageUrl || '';
       
       if (imageFile) {
@@ -138,18 +132,13 @@ export default function ServicesPage() {
         const storageRef = ref(storage, `services/${provider.username}/${uuidv4()}-${imageFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, imageFile);
         
-        try {
-            imageUrl = await new Promise<string>((resolve, reject) => {
-                uploadTask.on('state_changed',
-                    (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                    reject,
-                    async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
-                );
-            });
-        } catch (error) {
-            toast({ title: 'Upload Failed', description: 'Could not upload image.', variant: 'destructive' });
-            return;
-        }
+        imageUrl = await new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                reject,
+                async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+            );
+        });
       }
 
       const finalService: Service = {
@@ -170,29 +159,34 @@ export default function ServicesPage() {
         updatedServices = [...existingServices, finalService];
       }
       
-      try {
-        await updateProvider(provider.username, { settings: { ...provider.settings, services: updatedServices } });
-        toast({ title: 'Success', description: `Service '${finalService.title}' has been saved.` });
-        window.location.reload();
-      } catch (error: any) {
-        toast({ title: 'Error', description: 'Failed to save service.', variant: 'destructive' });
-      }
-    });
+      await updateProvider(provider.username, { settings: { ...provider.settings, services: updatedServices } });
+      toast({ title: 'Success', description: `Service '${finalService.title}' has been saved.` });
+      setProvider(p => p ? { ...p, settings: { ...p.settings, services: updatedServices } } : null);
+      resetFormState();
+
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Failed to save service.', variant: 'destructive' });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!currentService?.id || !provider) return;
 
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const updatedServices = (provider.settings.services || []).filter(s => s.id !== currentService!.id);
-      try {
-        await updateProvider(provider.username, { settings: { ...provider.settings, services: updatedServices } });
-        toast({ title: 'Success', description: 'Service has been deleted.' });
-        window.location.reload();
-      } catch (error: any) {
-        toast({ title: 'Error', description: 'Failed to delete service.', variant: 'destructive' });
-      }
-    });
+      await updateProvider(provider.username, { settings: { ...provider.settings, services: updatedServices } });
+      toast({ title: 'Success', description: 'Service has been deleted.' });
+      setProvider(p => p ? { ...p, settings: { ...p.settings, services: updatedServices } } : null);
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Failed to delete service.', variant: 'destructive' });
+    } finally {
+      setIsPending(false);
+      setIsDeleteAlertOpen(false);
+      setCurrentService(null);
+    }
   };
   
   const handleOfferPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,23 +231,6 @@ export default function ServicesPage() {
                 <Card key={service.id} className="flex flex-col">
                   <div className="relative">
                     <Image src={service.imageUrl} alt={service.title} width={400} height={250} className="rounded-t-lg aspect-[16/10] object-cover" />
-                    <div className="absolute top-2 right-2 flex items-center gap-2">
-                        <Badge variant={service.enabled ? 'default' : 'secondary'}>{service.enabled ? 'Enabled' : 'Disabled'}</Badge>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="secondary" size="icon" className="h-7 w-7">
-                                <MoreVertical className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenForm(service)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-500" onClick={() => {
-                                    setCurrentService(service);
-                                    setIsDeleteAlertOpen(true);
-                                }}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
                   </div>
                   <CardHeader>
                     <CardTitle>{service.title}</CardTitle>
@@ -267,8 +244,18 @@ export default function ServicesPage() {
                   <CardContent className="flex-1">
                     <p className="text-sm text-muted-foreground">{service.description}</p>
                   </CardContent>
-                  <CardFooter className="flex flex-wrap gap-2">
-                     {service.assignedServiceTypes.map(st => <Badge key={st} variant="outline">{st}</Badge>)}
+                  <CardFooter className="flex-col items-start gap-4">
+                    <div className="flex flex-wrap gap-2">
+                        <Badge variant={service.enabled ? 'default' : 'secondary'}>{service.enabled ? 'Enabled' : 'Disabled'}</Badge>
+                        {service.assignedServiceTypes.map(st => <Badge key={st} variant="outline">{st}</Badge>)}
+                    </div>
+                    <div className="flex justify-end w-full gap-2 pt-4 border-t">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenForm(service)}><Edit className="mr-2 h-3 w-3" />Edit</Button>
+                        <Button variant="destructive" size="sm" onClick={() => {
+                            setCurrentService(service);
+                            setIsDeleteAlertOpen(true);
+                        }}><Trash2 className="mr-2 h-3 w-3" />Delete</Button>
+                    </div>
                   </CardFooter>
                 </Card>
               ))}
@@ -286,7 +273,16 @@ export default function ServicesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={(open) => !open && resetFormState()}>
+      <Dialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetFormState();
+          } else {
+            setIsFormOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{currentService?.id ? 'Edit Service' : 'Add New Service'}</DialogTitle>
@@ -380,7 +376,15 @@ export default function ServicesPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCurrentService(null);
+          }
+          setIsDeleteAlertOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -400,5 +404,3 @@ export default function ServicesPage() {
     </div>
   );
 }
-
-    

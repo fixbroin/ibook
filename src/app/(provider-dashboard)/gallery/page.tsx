@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef, useTransition } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { auth, storage } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ import { getProviderByUsername, updateProvider } from '@/lib/data';
 import type { Provider, ProviderGalleryItem } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Loader2, PlusCircle, MoreVertical, Upload, Trash2, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Upload, Trash2, X, Image as ImageIcon, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -21,12 +21,6 @@ import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDownloadURL, ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
 const emptyItem: Partial<ProviderGalleryItem> = {
@@ -40,7 +34,7 @@ const emptyItem: Partial<ProviderGalleryItem> = {
 export default function GalleryPage() {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -114,25 +108,21 @@ export default function GalleryPage() {
         return;
     }
 
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       let imageUrl = currentItem.imageUrl || '';
       
       if (imageFile) {
         setUploadProgress(0);
         const storageRef = ref(storage, `gallery/${provider.username}/${uuidv4()}-${imageFile.name}`);
-        try {
-            const uploadTask = uploadBytesResumable(storageRef, imageFile);
-            imageUrl = await new Promise<string>((resolve, reject) => {
-                uploadTask.on('state_changed',
-                    (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                    reject,
-                    async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
-                );
-            });
-        } catch (error) {
-            toast({ title: 'Upload Failed', description: 'Could not upload image.', variant: 'destructive' });
-            return;
-        }
+        const uploadTask = uploadBytesResumable(storageRef, imageFile);
+        imageUrl = await new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                reject,
+                async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+            );
+        });
       }
 
       const finalItem: ProviderGalleryItem = {
@@ -152,39 +142,40 @@ export default function GalleryPage() {
         updatedItems = [...existingItems, finalItem];
       }
       
-      try {
-        const gallerySettings = { ...provider.settings.gallery, items: updatedItems };
-        await updateProvider(provider.username, { settings: { ...provider.settings, gallery: gallerySettings } });
-        toast({ title: 'Success', description: 'Gallery item saved.' });
-        setProvider(p => p ? { ...p, settings: { ...p.settings, gallery: gallerySettings } } : null);
-        resetFormState();
-      } catch (error: any) {
-        toast({ title: 'Error', description: 'Failed to save gallery item.', variant: 'destructive' });
-      }
-    });
+      const gallerySettings = { ...provider.settings.gallery, items: updatedItems };
+      await updateProvider(provider.username, { settings: { ...provider.settings, gallery: gallerySettings } });
+      toast({ title: 'Success', description: 'Gallery item saved.' });
+      setProvider(p => p ? { ...p, settings: { ...p.settings, gallery: gallerySettings } } : null);
+      resetFormState();
+    } catch (error: any) {
+      toast({ title: 'Error', description: 'Failed to save gallery item.', variant: 'destructive' });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!currentItem?.id || !provider) return;
 
-    startTransition(async () => {
+    setIsPending(true);
+    try {
         const itemToDelete = provider.settings.gallery?.items.find(i => i.id === currentItem.id);
         const updatedItems = (provider.settings.gallery?.items || []).filter(i => i.id !== currentItem.id);
         const gallerySettings = { ...provider.settings.gallery, items: updatedItems };
-        try {
-            await updateProvider(provider.username, { settings: { ...provider.settings, gallery: gallerySettings } });
-            if (itemToDelete?.imageUrl && itemToDelete.imageUrl.includes('firebasestorage')) {
-                const imageRef = ref(storage, itemToDelete.imageUrl);
-                await deleteObject(imageRef).catch(err => console.warn("Could not delete old image:", err));
-            }
-            toast({ title: 'Success', description: 'Gallery item deleted.' });
-            setProvider(p => p ? { ...p, settings: { ...p.settings, gallery: gallerySettings } } : null);
-            setIsDeleteAlertOpen(false);
-            setCurrentItem(null);
-        } catch (error: any) {
-            toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
+        await updateProvider(provider.username, { settings: { ...provider.settings, gallery: gallerySettings } });
+        if (itemToDelete?.imageUrl && itemToDelete.imageUrl.includes('firebasestorage')) {
+            const imageRef = ref(storage, itemToDelete.imageUrl);
+            await deleteObject(imageRef).catch(err => console.warn("Could not delete old image:", err));
         }
-    });
+        toast({ title: 'Success', description: 'Gallery item deleted.' });
+        setProvider(p => p ? { ...p, settings: { ...p.settings, gallery: gallerySettings } } : null);
+    } catch (error: any) {
+        toast({ title: 'Error', description: 'Failed to delete item.', variant: 'destructive' });
+    } finally {
+        setIsDeleteAlertOpen(false);
+        setCurrentItem(null);
+        setIsPending(false);
+    }
   };
   
   if (loading || !provider) {
@@ -212,28 +203,21 @@ export default function GalleryPage() {
                 <Card key={item.id} className="flex flex-col">
                   <div className="relative">
                     <Image src={item.imageUrl} alt={item.title || 'Gallery image'} width={400} height={250} className="rounded-t-lg aspect-video object-cover" />
-                    <div className="absolute top-2 right-2 flex items-center gap-2">
+                     <div className="absolute top-2 right-2">
                         <Badge variant={item.enabled ? 'default' : 'secondary'}>{item.enabled ? 'Enabled' : 'Disabled'}</Badge>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="secondary" size="icon" className="h-7 w-7">
-                                <MoreVertical className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenForm(item)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-500" onClick={() => {
-                                    setCurrentItem(item);
-                                    setIsDeleteAlertOpen(true);
-                                }}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
                     </div>
                   </div>
                   <CardContent className="p-4 flex-1">
                     {item.title && <p className="font-semibold">{item.title}</p>}
                     {item.caption && <p className="text-sm text-muted-foreground">{item.caption}</p>}
                   </CardContent>
+                  <CardFooter className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenForm(item)}><Edit className="mr-2 h-3 w-3" />Edit</Button>
+                      <Button variant="destructive" size="sm" onClick={() => {
+                          setCurrentItem(item);
+                          setIsDeleteAlertOpen(true);
+                      }}><Trash2 className="mr-2 h-3 w-3" />Delete</Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -250,7 +234,16 @@ export default function GalleryPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormOpen} onOpenChange={(open) => !open && resetFormState()}>
+      <Dialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetFormState();
+          } else {
+            setIsFormOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{currentItem?.id ? 'Edit' : 'Add'} Gallery Item</DialogTitle>
@@ -292,7 +285,15 @@ export default function GalleryPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCurrentItem(null);
+          }
+          setIsDeleteAlertOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
